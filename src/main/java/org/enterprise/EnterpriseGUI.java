@@ -2,213 +2,118 @@ package org.enterprise;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
+import java.util.List;
 
 public class EnterpriseGUI {
-
     private final Enterprise enterprise;
+    private final JTextArea textArea;
 
-    private final JFrame frame;
-    private JTextField departmentNameField;
-    private JTextField employeeNameField;
-    private JTextField employeeAgeField;
-    private JTextField employeeSalaryField;
-    private JTextArea outputArea;
-
-    private JButton addDepartmentButton;
-    private JButton removeDepartmentButton;
-    private JButton editDepartmentButton;
-    private JButton addEmployeeButton;
-    private JButton removeEmployeeButton;
-    private JButton editEmployeeButton;
-    private JButton showInfoButton;
-
-    private Department selectedDepartment;
-    private Employee selectedEmployee;
-
-    public EnterpriseGUI(Enterprise enterprise) {
-        this.enterprise = enterprise;
-
-        frame = new JFrame("Enterprise Management System");
+    public EnterpriseGUI() {
+        this.enterprise = new Enterprise();
+        this.textArea = new JTextArea(22, 50);
+    }
+    public void showMainFrame() {
+        SwingUtilities.invokeLater(() -> {
+            initComponents();
+            loadDepartmentsFromDatabase();
+            loadEmployeesFromDatabase();
+        });
+    }
+    private void initComponents() {
+        JFrame frame = new JFrame("Enterprise Management System");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(500, 400);
+        frame.setSize(1400, 500);
 
-        initializeComponents();
-        createLayout();
-        addActionListeners();
+        JButton showAllButton = new JButton("Отделы/сотрудники");
+        showAllButton.addActionListener(e -> showAllDepartments());
 
+        JButton addButton = new JButton("Добавить отдел");
+        addButton.addActionListener(e -> addDepartment());
+
+        JButton removeButton = new JButton("Удалить отдел");
+        removeButton.addActionListener(e -> removeDepartment());
+
+        JButton editButton = new JButton("Редактировать отдел");
+        editButton.addActionListener(e -> editDepartment());
+
+        JButton addEmployeeButton = new JButton("Добавить сотрудника");
+        addEmployeeButton.addActionListener(e -> addEmployee());
+
+        JButton editEmployeeButton = new JButton("Редактировать сотрудника");
+        editEmployeeButton.addActionListener(e -> editEmployee());
+
+        JButton removeEmployeeButton = new JButton("Удалить сотрудника");
+        removeEmployeeButton.addActionListener(e -> removeEmployee());
+
+        JButton showAllEmployeesButton = new JButton("Все сотрудники");
+        showAllEmployeesButton.addActionListener(e -> showAllEmployees());
+
+        JPanel panel = new JPanel();
+        panel.add(showAllButton);
+        panel.add(addButton);
+        panel.add(removeButton);
+        panel.add(editButton);
+        panel.add(addEmployeeButton);
+        panel.add(editEmployeeButton);
+        panel.add(removeEmployeeButton);
+        panel.add(showAllEmployeesButton);
+
+
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        JPanel mainPanel = new JPanel();
+        mainPanel.add(panel);
+        mainPanel.add(scrollPane);
+
+        frame.add(mainPanel);
         frame.setVisible(true);
     }
-
-    private void initializeComponents() {
-        addDepartmentButton = new JButton("Добавить отдел");
-        removeDepartmentButton = new JButton("Удалить отдел");
-        editDepartmentButton = new JButton("Редактировать отдел");
-        addEmployeeButton = new JButton("Добавить сотрудника");
-        removeEmployeeButton = new JButton("удалить сотрудника");
-        editEmployeeButton = new JButton("Редактировать сотрудника");
-        showInfoButton = new JButton("Показать информацию");
-
-        departmentNameField = new JTextField(20);
-        employeeNameField = new JTextField(20);
-        employeeAgeField = new JTextField(20);
-        employeeSalaryField = new JTextField(20);
-
-        outputArea = new JTextArea();
-        outputArea.setEditable(false);
+    private void showAllDepartments() {
+        StringBuilder output = new StringBuilder("Отделы:\n");
+        for (Department department : enterprise.getDepartments()) {
+            output.append(department).append(",\n").append(department.getFormattedEmployeeList())
+                    .append("Зарплата отдела: ").append(department.calculateTotalSalary()).append("\n\n");
+        }
+        textArea.setText(output.toString());
     }
+    private void addDepartment() {
+        String departmentName = JOptionPane.showInputDialog("Введите имя отдела:");
+        if (departmentName == null || departmentName.trim().isEmpty()) {
+            showError("Не верный ввод. Имя отдела не может быть пустым.");
+            return;
+        }
 
-    private void createLayout() {
-        JPanel panel = new JPanel(new GridLayout(0, 2));
-        panel.add(new JLabel("Название Отдела:"));
-        panel.add(departmentNameField);
-        panel.add(new JLabel("ФИО сотрудника:"));
-        panel.add(employeeNameField);
-        panel.add(new JLabel("Возраст сотрудника:"));
-        panel.add(employeeAgeField);
-        panel.add(new JLabel("З/П сотрудника:"));
-        panel.add(employeeSalaryField);
+        Department newDepartment = new Department(departmentName);
+        enterprise.addDepartment(newDepartment);
+        newDepartment.saveToDatabase();
 
-        panel.add(addDepartmentButton);
-        panel.add(removeDepartmentButton);
-        panel.add(editDepartmentButton);
-        panel.add(addEmployeeButton);
-        panel.add(removeEmployeeButton);
-        panel.add(editEmployeeButton);
-        panel.add(showInfoButton);
-
-        frame.add(panel, BorderLayout.NORTH);
-        frame.add(new JScrollPane(outputArea), BorderLayout.CENTER);
+        showMessage("Отдел успешно добавлен.");
     }
+    private void removeDepartment() {
+        String departmentName = JOptionPane.showInputDialog("Введите имя отдела:");
+        Department departmentToRemove = findDepartmentByName(departmentName);
 
-    private void addActionListeners() {
-        addDepartmentButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String departmentName = departmentNameField.getText();
-                if (!departmentName.isEmpty()) {
-                    Department newDepartment = new Department(departmentName);
-                    enterprise.addDepartment(newDepartment);
-                    outputArea.setText("Отдел добавлен: " + departmentName);
-                } else {
-                    outputArea.setText("Пожалуйста введите название отдела.");
-                }
-            }
-        });
-
-        removeDepartmentButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String departmentName = departmentNameField.getText();
-                Department targetDepartment = findDepartmentByName(departmentName);
-
-                if (targetDepartment != null) {
-                    enterprise.removeDepartment(targetDepartment);
-                    outputArea.setText("Отдел удалён: " + departmentName);
-                } else {
-                    outputArea.setText("Отдел не найден: " + departmentName);
-                }
-            }
-        });
-
-        editDepartmentButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String departmentName = departmentNameField.getText();
-                selectedDepartment = findDepartmentByName(departmentName);
-
-                if (selectedDepartment != null) {
-                    editDepartment(selectedDepartment);
-                } else {
-                    outputArea.setText("Отдел не найден: " + departmentName);
-                }
-            }
-        });
-
-        addEmployeeButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String departmentName = departmentNameField.getText();
-                String employeeName = employeeNameField.getText();
-                int employeeAge = Integer.parseInt(employeeAgeField.getText());
-                double employeeSalary = Double.parseDouble(employeeSalaryField.getText());
-
-                Department targetDepartment = findDepartmentByName(departmentName);
-
-                if (targetDepartment != null) {
-                    Employee newEmployee = new Employee(employeeName, employeeAge, employeeSalary);
-                    targetDepartment.addEmployee(newEmployee);
-                    outputArea.setText("Сотрудник добавлен в отдел " + departmentName + ": " + employeeName);
-                } else {
-                    outputArea.setText("Отдел не найден: " + departmentName);
-                }
-            }
-        });
-
-        removeEmployeeButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String departmentName = departmentNameField.getText();
-                String employeeName = employeeNameField.getText();
-                Department targetDepartment = findDepartmentByName(departmentName);
-
-                if (targetDepartment != null) {
-                    Employee targetEmployee = findEmployeeByName(targetDepartment, employeeName);
-
-                    if (targetEmployee != null) {
-                        targetDepartment.removeEmployee(targetEmployee);
-                        outputArea.setText("Сотрудник удалён из отдела " + departmentName + ": " + employeeName);
-                    } else {
-                        outputArea.setText("Сотрудник не найден в отделе: " + employeeName);
-                    }
-                } else {
-                    outputArea.setText("Отдел не найден: " + departmentName);
-                }
-            }
-        });
-
-        editEmployeeButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String departmentName = departmentNameField.getText();
-                String employeeName = employeeNameField.getText();
-                Department targetDepartment = findDepartmentByName(departmentName);
-
-                if (targetDepartment != null) {
-                    selectedEmployee = findEmployeeByName(targetDepartment, employeeName);
-
-                    if (selectedEmployee != null) {
-                        editEmployee(selectedEmployee);
-                    } else {
-                        outputArea.setText("Сотрудник не найден в отделе: " + employeeName);
-                    }
-                } else {
-                    outputArea.setText("Отдел не найден: " + departmentName);
-                }
-            }
-        });
-
-        showInfoButton.addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                StringBuilder info = new StringBuilder();
-
-                for (Department department : enterprise.getDepartments()) {
-                    info.append("Отдел: ").append(department.getName()).append(", Сотрудник: ").append(department.getNumberOfEmployees()).append("\n");
-
-                    for (Employee employee : department.getEmployees()) {
-                        info.append("    Сотрудник: ").append(employee.getFullName()).append(", Возраст: ").append(employee.getAge()).append(", З/П: ").append(employee.getSalary()).append("\n");
-                    }
-
-                    info.append("\n");
-                }
-
-                outputArea.setText(info.toString());
-            }
-        });
+        if (departmentToRemove != null) {
+            enterprise.removeDepartment(departmentToRemove);
+            DatabaseManager.removeDepartment(departmentToRemove);
+            showMessage("Отдел успешно удалён.");
+        } else {
+            showError("Отдел не найден.");
+        }
     }
+    private void editDepartment() {
+        String departmentName = JOptionPane.showInputDialog("Введите имя отдела:");
+        Department selectedDepartment = findDepartmentByName(departmentName);
 
+        if (selectedDepartment != null) {
+            String newDepartmentName = JOptionPane.showInputDialog("Введите новое имя отдела:");
+            selectedDepartment.setName(newDepartmentName);
+            showAllDepartments();
+            selectedDepartment.setName(newDepartmentName);
+            showMessage("Отдел успешно изменён.");
+        } else {
+            showError("Отдел не найден.");
+        }
+    }
     private Department findDepartmentByName(String name) {
         for (Department department : enterprise.getDepartments()) {
             if (department.getName().equals(name)) {
@@ -217,50 +122,158 @@ public class EnterpriseGUI {
         }
         return null;
     }
+    private Department chooseDepartment(String message) {
+        Object[] departmentOptions = enterprise.getDepartments().toArray();
+        if (departmentOptions.length == 0) {
+            showError("Отделы недоступны. Сначала добавьте отдел.");
+            return null;
+        }
 
-    private Employee findEmployeeByName(Department department, String name) {
-        for (Employee employee : department.getEmployees()) {
-            if (employee.getFullName().equals(name)) {
+        Object selectedDepartment = JOptionPane.showInputDialog(
+                null,
+                message,
+                "Выбирите отдел",
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                departmentOptions,
+                departmentOptions[0]);
+
+        return (Department) selectedDepartment;
+    }
+    private void addEmployee() {
+        String fullName = JOptionPane.showInputDialog("Введите полное имя сотрудника:");
+        int age = Integer.parseInt(JOptionPane.showInputDialog("Введите возраст сотрудника:"));
+        double salary = Double.parseDouble(JOptionPane.showInputDialog("Введите з/п сотрудника:"));
+
+        Department selectedDepartment = chooseDepartment("Выберите отдел для сотрудника:");
+        if (selectedDepartment == null) {
+            showError("Отдел не выбран. Сотрудник не добавлен.");
+            return;
+        }
+
+        Employee newEmployee = new Employee(fullName, age, salary);
+        int employeeId = DatabaseManager.saveEmployee(newEmployee);
+
+        if (employeeId != -1) {
+            showMessage("Сотрудник успешно добавлен с ID: " + employeeId);
+
+            selectedDepartment.addEmployee(newEmployee);
+            selectedDepartment.saveToDatabase();
+        } else {
+            showError("Ошибка при добавлении сотрудника.");
+        }
+    }
+    private void removeEmployee() {
+        int employeeId = Integer.parseInt(JOptionPane.showInputDialog("Введите ID сотрудника для удаления:"));
+        Employee employeeToRemove = findEmployeeById(employeeId);
+
+        if (employeeToRemove != null) {
+            removeEmployeeFromCurrentDepartment(employeeToRemove);
+
+            DatabaseManager.removeEmployee(employeeToRemove);
+
+            showMessage("Сотрудник успешно удален.");
+        } else {
+            showError("Сотрудник не найден.");
+        }
+    }
+    private void showAllEmployees() {
+        List<Employee> allEmployees = DatabaseManager.loadAllEmployees();
+        StringBuilder output = new StringBuilder("Все сотрудники:\n");
+
+        for (Employee employee : allEmployees) {
+            output.append("ID: ").append(employee.getId()).append(", ФИО: ").append(employee.getFullName())
+                    .append(", Возраст: ").append(employee.getAge()).append(", Зарплата: ").append(employee.getSalary()).append("\n");
+        }
+
+        textArea.setText(output.toString());
+    }
+    private Employee findEmployeeById(int employeeId) {
+        List<Employee> allEmployees = DatabaseManager.loadAllEmployees();
+
+        for (Employee employee : allEmployees) {
+            if (employee.getId() == employeeId) {
                 return employee;
             }
         }
+
         return null;
     }
+    private void editEmployee() {
+        int employeeId = Integer.parseInt(JOptionPane.showInputDialog("Введите ID сотрудника для редактирования:"));
+        Employee existingEmployee = findEmployeeById(employeeId);
 
-    private void editDepartment(Department department) {
-        String newName = JOptionPane.showInputDialog(frame, "Введите новое название отдела:", department.getName());
-        if (newName != null) {
-            department.setName(newName);
-            outputArea.setText("Информация о отделе изменена: " + newName);
+        if (existingEmployee != null) {
+            Object[] options = {"Изменить информацию", "Изменить отдел", "Отменить"};
+            int choice = JOptionPane.showOptionDialog(
+                    null,
+                    "Выберите действие:",
+                    "Редактировать сотрудника",
+                    JOptionPane.YES_NO_CANCEL_OPTION,
+                    JOptionPane.QUESTION_MESSAGE,
+                    null,
+                    options,
+                    options[2]);
+
+            switch (choice) {
+                case 0:
+                    editEmployeeInformation(existingEmployee);
+                    break;
+                case 1:
+                    editEmployeeDepartment(existingEmployee);
+                    break;
+            }
+        } else {
+            showError("Сотрудник не найден.");
         }
     }
+    private void editEmployeeInformation(Employee employee) {
+        String newFullName = JOptionPane.showInputDialog("Введите новое ФИО:");
+        int newAge = Integer.parseInt(JOptionPane.showInputDialog("Введите новый возраст:"));
+        double newSalary = Double.parseDouble(JOptionPane.showInputDialog("Введите новую зарплату:"));
 
-    private void editEmployee(Employee employee) {
-        String newName = JOptionPane.showInputDialog(frame, "Введите новое имя:", employee.getFullName());
-        if (newName != null) {
-            employee.setFullName(newName);
+        employee.setFullName(newFullName);
+        employee.setAge(newAge);
+        employee.setSalary(newSalary);
+
+        DatabaseManager.updateEmployee(employee);
+        showMessage("Информация о сотруднике успешно обновлена.");
+    }
+    private void editEmployeeDepartment(Employee employee) {
+        Department selectedDepartment = chooseDepartment("Выберите новый отдел для сотрудника:");
+        if (selectedDepartment != null) {
+            removeEmployeeFromCurrentDepartment(employee);
+            selectedDepartment.addEmployee(employee);
+            selectedDepartment.saveToDatabase();
+            showMessage("Отдел сотрудников успешно обновлен.");
+        } else {
+            showError("Отдел не выбран. Отдел сотрудников не обновлен.");
         }
-
-        String newAge = JOptionPane.showInputDialog(frame, "Введите новый возраст:", String.valueOf(employee.getAge()));
-        if (newAge != null) {
-            try {
-                int age = Integer.parseInt(newAge);
-                employee.setAge(age);
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(frame, "Invalid age format. Please enter a number.");
+    }
+    private void removeEmployeeFromCurrentDepartment(Employee employee) {
+        for (Department department : enterprise.getDepartments()) {
+            if (department.getEmployees().contains(employee)) {
+                department.removeEmployee(employee);
+                department.saveToDatabase();
+                break;
             }
         }
-
-        String newSalary = JOptionPane.showInputDialog(frame, "Введите новую з/п:", String.valueOf(employee.getSalary()));
-        if (newSalary != null) {
-            try {
-                double salary = Double.parseDouble(newSalary);
-                employee.setSalary(salary);
-            } catch (NumberFormatException ex) {
-                JOptionPane.showMessageDialog(frame, "Invalid salary format. Please enter a number.");
-            }
+    }
+    private void loadDepartmentsFromDatabase() {
+        List<Department> departments = DatabaseManager.loadAllDepartments();
+        enterprise.getDepartments().addAll(departments);
+    }
+    private void loadEmployeesFromDatabase() {
+        List<Employee> employees = DatabaseManager.loadAllEmployees();
+        for (Department department : enterprise.getDepartments()) {
+            List<Employee> departmentEmployees = DatabaseManager.loadDepartmentEmployees(department);
+            department.getEmployees().addAll(departmentEmployees);
         }
-
-        outputArea.setText("Информация о сотруднике изменена: " + employee.getFullName());
+    }
+    private void showError(String message) {
+        JOptionPane.showMessageDialog(null, message, "Error", JOptionPane.ERROR_MESSAGE);
+    }
+    private void showMessage(String message) {
+        JOptionPane.showMessageDialog(null, message, "Message", JOptionPane.INFORMATION_MESSAGE);
     }
 }
