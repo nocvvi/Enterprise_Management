@@ -9,7 +9,6 @@ public class Enterprise {
     public Enterprise() {
         this.departments = new ArrayList<>();
     }
-
     public void addDepartment(Department department) {
         departments.add(department);
     }
